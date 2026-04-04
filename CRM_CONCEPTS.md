@@ -1,7 +1,7 @@
 # afrus-Wolverine — CRM Commercial System
 ## Core Concepts & Data Model
 
-**Version:** 1.1
+**Version:** 1.3
 **Date:** April 2026
 **Status:** Draft — for Diego's review
 
@@ -9,11 +9,22 @@
 
 ## 1. Overview
 
-Wolverine is an orchestrator layer that extracts leads from the afrus CRM via API, classifies them as potential buyers, and manages the full commercial sales lifecycle through a structured tag system.
+Wolverine is a multi-tenant SaaS commercial agent that extracts leads from the afrus CRM via API, classifies them as potential buyers, and manages the full sales lifecycle through a structured tag system.
 
-The system operates on three core entities: **Leads**, **Organizations**, and **Users (SDRs)**. All commercial state is expressed through tags.
+The system operates on four core entities: **Organizations**, **Leads**, **Users (SDRs)**, and **Tags**. All commercial state is expressed through tags.
 
-Every lead **must belong to one Organization**. Organizations are the primary account unit — SDRs are assigned to organizations, not to individual leads.
+### Multi-Tenant Architecture
+
+Wolverine serves multiple afrus clients simultaneously. Each client = one **Organization** in Wolverine. Every table carries `organization_id` as a mandatory foreign key. Data is strictly isolated per organization via Row Level Security (RLS) in PostgreSQL.
+
+### Two-Level Organization Model
+
+| Concept | Description |
+|---|---|
+| **Wolverine Organization** | The client as represented in Wolverine's database. Has `organization_id` (UUID, PK) and `afrus_org_id` linking to afrus. Also stores `afrus_api_key` — the API key for that specific client's afrus account. |
+| **afrus Organization** | The organization record inside the afrus platform. The `afrus_org_id` and `afrus_api_key` fields link a Wolverine Organization to its corresponding afrus account. |
+
+> Every Wolverine Organization has its **own afrus API key**. Wolverine uses the org's own key when making API calls to afrus on behalf of that client.
 
 ---
 
@@ -23,7 +34,7 @@ Wolverine has two user modes:
 
 | Mode | Description |
 |---|---|
-| **SDR Mode** | Standard user — manages leads, tags, stages |
+| **SDR Mode** | Standard user — manages leads, tags, stages within their organization |
 | **Admin Mode** | Can CRUD all administrable tables: origins, lost reasons, tags, users, organizations |
 
 Admin-level entities that require CRUD (API + CLI + UI):
@@ -33,12 +44,13 @@ Admin-level entities that require CRUD (API + CLI + UI):
 - Pipeline stages
 - Tag definitions
 - Organization management
+- **Sync tags** (new)
 
 ---
 
 ## 3. Tag System
 
-Tags are the core abstraction. Every tag has a **type** and a **value**. A lead carries zero or more tags at any time.
+Tags are the core abstraction. Every tag has a **type** and a **value**. A lead carries one tag per type at any given time.
 
 ### 3.1 Tag Types
 
@@ -48,14 +60,27 @@ Tags are the core abstraction. Every tag has a **type** and a **value**. A lead 
 | **Origin** | Where the lead came from | `origin:inbound`, `origin:linkedin` |
 | **Temperature** | Heat level of the lead | `temp:hot`, `temp:warm`, `temp:cold` |
 | **Action** | Triggers an automated action via ALMA | `action:send_drip_sequence` |
+| **Sync** | Defines which leads to extract from afrus | `sync:fundraiser_leads`, `sync:monthly_donors` |
 
 ### 3.2 Tag Administration
 
 All tags require full CRUD management via API, CLI, and UI. This is a minimum requirement for the system.
 
-### 3.3 Action Tags & ALMA
+### 3.3 Sync Tags
 
-When an action tag is assigned to a lead, it triggers a workflow in ALMA (afrus's AI agent). ALMA executes a sequence of actions bound to that tag (e.g., send onboarding email, run nurturing sequence, etc.).
+Sync tags are the mechanism for extracting leads from afrus. Each sync tag maps to a tag name in afrus.
+
+**How it works:**
+1. Wolverine Admin creates a sync tag: `sync:fundraiser_leads` with `afrus_tag_name: "fundraiser_leads"`
+2. User triggers on-demand sync for that sync tag
+3. Wolverine calls afrus API: "give me all leads that have tag `fundraiser_leads`"
+4. afrus returns those leads; Wolverine creates/updates them locally
+
+Only leads matching the specified afrus tag are extracted. Multiple sync tags can exist per organization.
+
+### 3.4 Action Tags & ALMA
+
+When an action tag is assigned to a lead, it triggers a workflow in ALMA (afrus's AI agent). ALMA executes a sequence of actions bound to that tag.
 
 ---
 
@@ -147,12 +172,16 @@ Every lead must belong to exactly one Organization. Organizations are the primar
 | `name` | string | Organization legal name |
 | `domain` | string | Website domain |
 | `is_customer` | boolean | Is this org already paying afrus? |
+| `afrus_org_id` | string | Organization ID in afrus platform |
+| `afrus_api_key` | string | API key for this client's afrus account (stored securely) |
+
+> `afrus_api_key` is stored encrypted at rest. Used by the sync engine to make API calls to afrus on behalf of this organization.
 
 ### Lead ↔ Organization
 
 - Every lead belongs to exactly one organization
 - The relationship is mandatory (not optional)
-- Fields: `lead_id`, `org_id`, `contact_role` (e.g., "decision maker", "influencer", "end user")
+- Fields: `lead_id`, `org_id`, `contact_role`
 
 ### Owner ↔ Organization
 
@@ -165,12 +194,38 @@ SDRs are assigned to **organizations**, not directly to leads. The SDR who owns 
 ### Organization Status
 
 - Critical distinction: **prospect** vs. **customer**
-- Pulled from afrus via `newadmin API` at extraction time
 - If `is_customer = true`: upsell/cross-sell motion — pipeline stage relevant only for expansion deals
 
 ---
 
-## 8. Lead Ownership
+## 8. Lead
+
+### Lead Identity
+
+**Primary key: `email`** (email address of the contact)
+
+The lead's identity is determined by email — not by afrus_lead_id. This allows leads to be matched across systems reliably.
+
+| Field | Type | Description |
+|---|---|---|
+| `email` | string | Primary key. Contact's email address. |
+| `afrus_lead_id` | string | Lead ID in afrus (not PK — used for sync mapping) |
+| `org_id` | UUID | FK → Organization. Mandatory. |
+| `first_name` | string | Contact first name |
+| `last_name` | string | Contact last name |
+| `phone` | string | Phone number |
+| `title` | string | Job title |
+| `contact_role` | string | Role in the organization (decision maker, influencer, etc.) |
+
+### Why Email as PK?
+
+- afrus uses internal numeric IDs that can collide or change across exports
+- Email is stable, unique per person, and human-readable
+- afrus_lead_id is stored as a field for reference and sync purposes, but does not determine identity
+
+---
+
+## 9. Lead Ownership
 
 Every lead has exactly one **owner**: a User (SDR) who owns the **organization** the lead belongs to.
 
@@ -179,12 +234,13 @@ Every lead has exactly one **owner**: a User (SDR) who owns the **organization**
 | Field | Type | Description |
 |---|---|---|
 | `user_id` | UUID | Primary key |
+| `org_id` | UUID | FK → Organization. User belongs to one org. |
 | `type` | enum | `human` or `agent` |
-| `email` | string | Email address |
+| `email` | string | Email address (login) |
 | `name` | string | First name |
 | `lastname` | string | Last name |
 | `phone` | string | Phone number |
-| `afrus_user_id` | string | User ID inside afrus platform (not a lead ID) |
+| `afrus_user_id` | string | User ID inside afrus platform |
 
 > Note: `type = agent` is for AI-driven SDRs (like Wolverine itself or ALMA) that can own leads in the system.
 
@@ -200,26 +256,52 @@ Change the pipeline stage of a lead. Only the assigned user (or an admin) can do
 
 | Field | Who Can Change |
 |---|---|
-| Pipeline Stage | Assigned User (org owner) |
-| Temperature | Assigned User (org owner) |
-| Action Tags | Assigned User (org owner) or ALMA (automated) |
+| Pipeline Stage | Org owner (User) |
+| Temperature | Org owner (User) |
+| Action Tags | Org owner or ALMA |
 | Origin Tags | Wolverine (at extraction) or User |
-| Organization | User (admin only) |
+| Organization | Admin only |
+| Sync Tags | Admin only |
 
 ---
 
-## 9. Lead Extraction from afrus
+## 10. On-Demand Sync from afrus
 
-- Wolverine extracts leads via **afrus API v1**
-- Extraction scope: all leads in the organization's pipeline
-- Origin fields (campaign_id, url, etc.) captured at extraction time
-- Origin tag assigned by Wolverine at extraction time
-- afrus tags mapped to Wolverine pipeline stages where applicable
-- New leads entering afrus after extraction are picked up on next sync
+Sync is **never automatic on a schedule**. It is triggered **on-demand**.
+
+### Sync Trigger
+
+User (or API call) specifies a **sync tag** → Wolverine fetches from afrus only the leads that carry the corresponding tag in afrus.
+
+### Sync Flow
+
+```
+User selects sync tag "fundraiser_leads"
+        ↓
+Wolverine reads afrus_api_key from Organization
+        ↓
+Wolverine calls afrus API:
+  "GET /leads?tag=fundraiser_leads"
+        ↓
+afus returns matching leads
+        ↓
+Wolverine creates/updates leads locally
+(upsert by email — PK match)
+        ↓
+Sync complete. User notified.
+```
+
+### Sync Tag Management
+
+Each sync tag stores:
+- `tag_value` — the name used in Wolverine (e.g., `fundraiser_leads`)
+- `afrus_tag_name` — the corresponding tag name in afrus (may differ)
+
+CRUD for sync tags is part of Admin mode.
 
 ---
 
-## 10. Lost Reasons
+## 11. Lost Reasons
 
 When a lead reaches `lost`, a reason must be documented. Lost reasons are **administratable** — CRUD required via Admin mode.
 
@@ -237,16 +319,19 @@ Default values:
 
 ---
 
-## 11. Quick Reference — All Concepts Summary
+## 12. Quick Reference — All Concepts Summary
 
 | Concept | Count | Notes |
 |---|---|---|
-| Tag Types | 4 | stage, origin, temperature, action |
+| Tag Types | 5 | stage, origin, temperature, action, sync |
 | Pipeline Stages | 9 | 7 active + 2 terminal |
 | Temperatures | 3 | hot, warm, cold |
 | Origin Tags | Open set | CRUD admin required |
+| Sync Tags | Open set | CRUD admin required |
 | Origin Fields (from afrus) | 7 | campaign_id, url, utm_campaign, etc. |
 | User Types | 2 | human, agent |
-| Org Fields (v1) | 4 | id, name, domain, is_customer |
+| Org Fields (v1) | 7 | id, name, domain, is_customer, afrus_org_id, afrus_api_key |
 | Lost Reasons | Open set | CRUD admin required |
 | Wolverine Modes | 2 | SDR mode, Admin mode |
+| Lead PK | email | Not afrus_lead_id |
+| Sync Mode | on-demand | Not scheduled |
