@@ -579,31 +579,31 @@ All pipeline stage transitions follow the format below.
 
 ## Appendix: Issue Summary Table
 
-| ID | Title | Phase | Priority | Depends on |
+| ID | Title | Phase | Priority | Depends on | Status |
 |---|---|---|---|---|
-| ISS-001 | Project Scaffold and Docker Setup | 0 | HIGH | — |
-| ISS-002 | PostgreSQL Multi-Tenant Schema (RLS + Email PK) | 0 | HIGH | ISS-001 |
-| ISS-003 | Secrets and Configuration Management | 0 | HIGH | ISS-001 |
-| ISS-004 | Tag System CRUD (5 types including Sync) | 1 | HIGH | ISS-002 |
-| ISS-005 | Pipeline Stage State Machine | 1 | HIGH | ISS-004 |
-| ISS-006 | Stage Transition Rule Engine | 1 | HIGH | ISS-005 |
-| ISS-007 | SLA Monitoring and Stale Detection | 1 | HIGH | ISS-006 |
-| ISS-008 | `future` Stage Auto-Reactivation | 1 | MEDIUM | ISS-006 |
-| ISS-009 | afrus API Client (Per-Org Authentication) | 2 | HIGH | ISS-003, ISS-002 |
-| ISS-010 | On-Demand Extraction Pipeline (Sync Tags) | 2 | HIGH | ISS-009, ISS-004 |
-| ISS-011 | Wolverine → afrus Write-Back | 2 | HIGH | ISS-010 |
-| ISS-012 | Bidirectional Sync Orchestrator | 2 | MEDIUM | ISS-010, ISS-011 |
-| ISS-013 | LLM Provider Abstraction Layer | 3 | HIGH | ISS-003 |
-| ISS-014 | Next-Action Recommendation Engine | 3 | HIGH | ISS-013, ISS-006 |
-| ISS-015 | Lead Summarization and Qualification Assistant | 3 | MEDIUM | ISS-013, ISS-014 |
-| ISS-016 | Conversation Drafting | 3 | MEDIUM | ISS-013, ISS-014 |
-| ISS-017 | Nest.js CLI Application | 4 | HIGH | ISS-006, ISS-014 |
-| ISS-018 | REST API | 4 | HIGH | ISS-017 |
-| ISS-019 | Web Management UI | 4 | MEDIUM | ISS-018 |
-| ISS-020 | Action Tag → ALMA Webhook Integration | 5 | HIGH | ISS-004 |
-| ISS-021 | ALMA Action Library | 5 | HIGH | ISS-020 |
-| ISS-022 | ALMA → Wolverine Callback Handler | 5 | MEDIUM | ISS-020, ISS-021 |
-| ISS-023 | Sync Tags CRUD and Management | 6 | HIGH | ISS-004, ISS-009 |
-| ISS-024 | On-Demand Sync Trigger (API + CLI) | 6 | HIGH | ISS-010, ISS-023 |
+| ISS-001 | Project Scaffold and Docker Setup | 0 | HIGH | — | ✅ Done
+| ISS-002 | PostgreSQL Multi-Tenant Schema (RLS + Email PK) | 0 | HIGH | ISS-001 | Not Started
+| ISS-003 | Secrets and Configuration Management | 0 | HIGH | ISS-001 | Not Started
+| ISS-004 | Tag System CRUD (5 types including Sync) | 1 | HIGH | ISS-002 | Not Started
+| ISS-005 | Pipeline Stage State Machine | 1 | HIGH | ISS-004 | Not Started
+| ISS-006 | Stage Transition Rule Engine | 1 | HIGH | ISS-005 | Not Started
+| ISS-007 | SLA Monitoring and Stale Detection | 1 | HIGH | ISS-006 | Not Started
+| ISS-008 | `future` Stage Auto-Reactivation | 1 | MEDIUM | ISS-006 | Not Started
+| ISS-009 | afrus API Client (Per-Org Authentication) | 2 | HIGH | ISS-003, ISS-002 | Not Started
+| ISS-010 | On-Demand Extraction Pipeline (Sync Tags) | 2 | HIGH | ISS-009, ISS-004 | Not Started
+| ISS-011 | Wolverine → afrus Write-Back | 2 | HIGH | ISS-010 | Not Started
+| ISS-012 | Bidirectional Sync Orchestrator | 2 | MEDIUM | ISS-010, ISS-011 | Not Started
+| ISS-013 | LLM Provider Abstraction Layer | 3 | HIGH | ISS-003 | Not Started
+| ISS-014 | Next-Action Recommendation Engine | 3 | HIGH | ISS-013, ISS-006 | Not Started
+| ISS-015 | Lead Summarization and Qualification Assistant | 3 | MEDIUM | ISS-013, ISS-014 | Not Started
+| ISS-016 | Conversation Drafting | 3 | MEDIUM | ISS-013, ISS-014 | Not Started
+| ISS-017 | Nest.js CLI Application | 4 | HIGH | ISS-006, ISS-014 | Not Started
+| ISS-018 | REST API | 4 | HIGH | ISS-017 | Not Started
+| ISS-019 | Web Management UI | 4 | MEDIUM | ISS-018 | Not Started
+| ISS-020 | Action Tag → ALMA Webhook Integration | 5 | HIGH | ISS-004 | Not Started
+| ISS-021 | ALMA Action Library | 5 | HIGH | ISS-020 | Not Started
+| ISS-022 | ALMA → Wolverine Callback Handler | 5 | MEDIUM | ISS-020, ISS-021 | Not Started
+| ISS-023 | Sync Tags CRUD and Management | 6 | HIGH | ISS-004, ISS-009 | Not Started
+| ISS-024 | On-Demand Sync Trigger (API + CLI) | 6 | HIGH | ISS-010, ISS-023 | Not Started
 
 **Total: 24 issues across 6 phases.**
