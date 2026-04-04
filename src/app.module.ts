@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
+import { HealthController } from './health.controller.js';
 
 @Module({
   imports: [
@@ -14,5 +15,6 @@ import { ScheduleModule } from '@nestjs/schedule';
     }),
     ScheduleModule.forRoot(),
   ],
+  controllers: [HealthController],
 })
 export class AppModule {}
