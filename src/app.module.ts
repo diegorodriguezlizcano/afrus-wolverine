@@ -16,6 +16,7 @@ import { AfrusApiModule } from './afrus-api/afrus-api.module.js';
 import { ExtractionModule } from './extraction/extraction.module.js';
 import { WritebackModule } from './writeback/writeback.module.js';
 import { SyncModule } from './sync/sync.module.js';
+import { LlmModule } from './llm/llm.module.js';
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { SyncModule } from './sync/sync.module.js';
     ExtractionModule,
     WritebackModule,
     SyncModule,
+    LlmModule,
   ],
   controllers: [HealthController],
 })
