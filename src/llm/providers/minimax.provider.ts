@@ -7,7 +7,7 @@ export class MiniMaxProvider implements LlmProvider {
   readonly name = 'minimax';
   readonly defaultModel = 'MiniMax-Text-01';
 
-  private readonly baseUrl = 'https://api.minimax.chat/v1';
+  private readonly baseUrl = 'https://api.minimax.io/v1';
   private readonly logger = new Logger(MiniMaxProvider.name);
 
   constructor(
