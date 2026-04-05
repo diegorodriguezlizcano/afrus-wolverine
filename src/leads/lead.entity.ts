@@ -1,0 +1,33 @@
+export interface LeadEntity {
+  email: string;
+  orgId: string;
+  afrusLeadId: string | null;
+  firstName: string;
+  lastName: string;
+  phone: string | null;
+  title: string | null;
+  contactRole: string | null;
+  stage: string;
+  temperature: string;
+  scheduledAt: Date | null;
+  scheduledBy: string | null;
+  metAt: Date | null;
+  qualifiedAt: Date | null;
+  proposedAt: Date | null;
+  negotiatingSince: Date | null;
+  wonAt: Date | null;
+  lostAt: Date | null;
+  lostBy: string | null;
+  nextContactDate: Date | null;
+  reactivatedAt: Date | null;
+  dealValue: number | null;
+  campaignId: string | null;
+  campaignName: string | null;
+  widgetId: string | null;
+  widgetName: string | null;
+  isImported: boolean | null;
+  url: string | null;
+  utmCampaign: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}

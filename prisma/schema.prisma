@@ -1,0 +1,392 @@
+// afrus-Wolverine — Prisma Schema
+// PostgreSQL Multi-Tenant CRM Pipeline
+// ORM: Prisma 5.x | Database: PostgreSQL 16
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// =============================================================================
+// TENANT ROOT
+// =============================================================================
+
+/// Organization — the tenant unit. Each afrus customer org is one row here.
+/// NOT subject to RLS — it is the tenant boundary itself.
+model Organization {
+  id          String   @id @default(uuid())
+  name        String
+  afrusOrgId  String   @unique @map("afrus_org_id")
+  afrusApiKey String   @map("afrus_api_key")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  users                 User[]
+  leads                 Lead[]
+  origins               Origin[]
+  tags                  Tag[]
+  lostReasons           LostReason[]
+  syncTags              SyncTag[]
+  stageTransitionLogs   StageTransitionLog[]
+  actionTagLogs         ActionTagLog[]
+  syncLogs              SyncLog[]
+
+  @@map("organizations")
+}
+
+// =============================================================================
+// USERS
+// =============================================================================
+
+/// User — SDR or Admin within an organization.
+/// Email is globally unique (one person = one login, regardless of org).
+model User {
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  email          String   @unique
+  name           String
+  role           UserRole
+  passwordHash   String   @map("password_hash")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  // Leads assigned to this SDR
+  assignedLeads  Lead[]       @relation("AssignedSDR")
+
+  // Transition / action logs where this user triggered the action
+  triggeredTransitions StageTransitionLog[] @relation("TriggeredByUser")
+  triggeredActions      ActionTagLog[]       @relation("TriggeredByUser")
+
+  @@index([organizationId])
+  @@map("users")
+}
+
+enum UserRole {
+  ADMIN
+  SDR
+  VIEWER
+}
+
+// =============================================================================
+// LEADS
+// =============================================================================
+
+/// Lead — the core CRM entity. PK is email (from the afrus platform).
+/// Every lead belongs to exactly one organization.
+model Lead {
+  // Primary key — email from afrus platform
+  email          String   @id
+
+  // Tenant FK
+  organizationId String   @map("organization_id")
+
+  // afrus reference
+  afrusLeadId    String?  @map("afrus_lead_id")
+
+  // Pipeline state
+  stage          PipelineStage @default(NEW)
+  temperature    Temperature   @default(COLD)
+
+  // Contact info
+  firstName      String?   @map("first_name")
+  lastName       String?   @map("last_name")
+  phone          String?
+  phone2         String?
+
+  // Qualification criteria
+  needConfirmed    Boolean  @default(false) @map("need_confirmed")
+  budgetConfirmed  Boolean  @default(false) @map("budget_confirmed")
+  urgencyConfirmed Boolean  @default(false) @map("urgency_confirmed")
+  dealValue        Decimal? @map("deal_value")
+
+  // Assigned SDR
+  assignedToId    String?  @map("assigned_to_id")
+
+  // Stage timestamps
+  scheduledAt     DateTime? @map("scheduled_at")
+  metAt           DateTime? @map("met_at")
+  qualifiedAt     DateTime? @map("qualified_at")
+  proposedAt      DateTime? @map("proposed_at")
+  negotiatingSince DateTime? @map("negotiating_since")
+  wonAt           DateTime? @map("won_at")
+  dealValueWon    Decimal?  @map("deal_value_won")
+  lostAt          DateTime? @map("lost_at")
+  nextContactDate DateTime? @map("next_contact_date")
+  reactivatedAt   DateTime? @map("reactivated_at")
+
+  // User IDs who triggered each stage transition (denormalized for audit)
+  scheduledById   String?  @map("scheduled_by_id")
+  metById         String?  @map("met_by_id")
+  qualifiedById   String?  @map("qualified_by_id")
+  proposedById    String?  @map("proposed_by_id")
+  negotiatingById  String?  @map("negotiating_by_id")
+  wonById         String?  @map("won_by_id")
+  lostById        String?  @map("lost_by_id")
+
+  // Origin
+  originId        String?  @map("origin_id")
+
+  // When the current stage was entered (for SLA tracking)
+  stageEnteredAt  DateTime @default(now()) @map("stage_entered_at")
+
+  // Timestamps
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  assignedTo     User?       @relation("AssignedSDR", fields: [assignedToId], references: [id])
+  origin         Origin?     @relation(fields: [originId], references: [id])
+
+  // User relations for stage transitions
+  scheduledBy    User?  @relation(fields: [scheduledById], references: [id])
+  metBy          User?  @relation(fields: [metById], references: [id])
+  qualifiedBy    User?  @relation(fields: [qualifiedById], references: [id])
+  proposedBy     User?  @relation(fields: [proposedById], references: [id])
+  negotiatingBy  User?  @relation(fields: [negotiatingById], references: [id])
+  wonBy          User?  @relation(fields: [wonById], references: [id])
+  lostBy         User?  @relation(fields: [lostById], references: [id])
+
+  // Tags (one per type per lead)
+  tags            Tag[]
+
+  // Audit logs
+  stageTransitions StageTransitionLog[]
+  actionLogs       ActionTagLog[]
+  syncLogs         SyncLog[]
+
+  @@index([organizationId])
+  @@index([stage])
+  @@index([temperature])
+  @@index([organizationId, stage])
+  @@index([assignedToId])
+  @@map("leads")
+}
+
+enum PipelineStage {
+  NEW
+  SCHEDULED
+  MET
+  QUALIFIED
+  PROPOSED
+  NEGOTIATING
+  FUTURE
+  WON
+  LOST
+}
+
+enum Temperature {
+  COLD
+  WARM
+  HOT
+}
+
+// =============================================================================
+// ORIGINS
+// =============================================================================
+
+/// Origin — how a lead entered the pipeline (e.g. Web, Referral, Event).
+/// Unique per organization.
+model Origin {
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  name           String
+  description    String?
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  leads        Lead[]
+
+  @@unique([organizationId, name])
+  @@map("origins")
+}
+
+// =============================================================================
+// TAGS
+// =============================================================================
+
+/// Tag — one tag per type per lead. Enforced by composite unique index.
+/// 5 tag types: STAGE, ORIGIN, TEMP, ACTION, SYNC
+model Tag {
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  leadEmail      String   @map("lead_email")
+  tagType        TagType
+  tagValue       String   @map("tag_value") // e.g. "cold", "meeting_scheduled"
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  lead         Lead         @relation(fields: [leadEmail], references: [email], onDelete: Cascade)
+
+  // One tag per type per lead
+  @@unique([leadEmail, organizationId, tagType])
+  @@index([organizationId])
+  @@map("tags")
+}
+
+enum TagType {
+  STAGE
+  ORIGIN
+  TEMP
+  ACTION
+  SYNC
+}
+
+// =============================================================================
+// LOST REASONS
+// =============================================================================
+
+/// LostReason — predefined reasons why a lead was marked lost.
+/// Unique per organization.
+model LostReason {
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  reason         String
+  description    String?
+  isActive       Boolean  @default(true) @map("is_active")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, reason])
+  @@map("lost_reasons")
+}
+
+// =============================================================================
+// SYNC TAGS
+// =============================================================================
+
+/// SyncTag — maps a Wolverine sync tag to an afrus tag name.
+/// Used by the extraction pipeline to know which afrus leads to fetch per sync.
+model SyncTag {
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  tagValue       String   @map("tag_value")      // Wolverine-side: "hot-leads"
+  afrusTagName   String   @map("afrus_tag_name") // afrus-side: "Hot Leads"
+  description    String?
+  isActive       Boolean  @default(true) @map("is_active")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, tagValue])
+  @@map("sync_tags")
+}
+
+// =============================================================================
+// STAGE TRANSITION LOG
+// =============================================================================
+
+/// StageTransitionLog — immutable audit trail of every pipeline stage change.
+model StageTransitionLog {
+  id             String   @id @default(uuid())
+  leadEmail      String   @map("lead_email")
+  organizationId String   @map("organization_id")
+  fromStage      String?  @map("from_stage")
+  toStage        String   @map("to_stage")
+  triggeredById  String   @map("triggered_by_id")
+  metadata       Json?
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  // Relations
+  lead        Lead        @relation(fields: [leadEmail], references: [email], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  triggeredBy User        @relation("TriggeredByUser", fields: [triggeredById], references: [id])
+
+  @@index([leadEmail])
+  @@index([organizationId])
+  @@index([createdAt])
+  @@map("stage_transition_log")
+}
+
+// =============================================================================
+// ACTION TAG LOG
+// =============================================================================
+
+/// ActionTagLog — tracks when action: tags trigger ALMA webhook calls.
+model ActionTagLog {
+  id             String       @id @default(uuid())
+  leadEmail      String       @map("lead_email")
+  organizationId String       @map("organization_id")
+  actionTag      String       @map("action_tag") // e.g. "meeting_scheduled"
+  almaSequence   String?      @map("alma_sequence")
+  status         ActionStatus
+  almaResponse   Json?        @map("alma_response")
+  triggeredById  String       @map("triggered_by_id")
+  triggeredAt    DateTime     @default(now()) @map("triggered_at")
+  completedAt    DateTime?    @map("completed_at")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+
+  // Relations
+  lead        Lead        @relation(fields: [leadEmail], references: [email], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  triggeredBy User        @relation("TriggeredByUser", fields: [triggeredById], references: [id])
+
+  @@index([leadEmail])
+  @@index([organizationId])
+  @@index([status])
+  @@map("action_tag_log")
+}
+
+enum ActionStatus {
+  TRIGGERED
+  COMPLETED
+  FAILED
+  NEEDS_HUMAN
+}
+
+// =============================================================================
+// SYNC LOG
+// =============================================================================
+
+/// SyncLog — tracks every Wolverine ↔ afrus sync operation per lead.
+model SyncLog {
+  id             String      @id @default(uuid())
+  organizationId String      @map("organization_id")
+  leadEmail      String      @map("lead_email")
+  direction      SyncDirection
+  status         SyncStatus
+  payload        Json?
+  errorMessage   String?     @map("error_message")
+  syncedAt       DateTime?   @map("synced_at")
+  createdAt      DateTime    @default(now()) @map("created_at")
+  updatedAt      DateTime    @updatedAt @map("updated_at")
+
+  // Relations
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  lead         Lead         @relation(fields: [leadEmail], references: [email], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([leadEmail])
+  @@index([status])
+  @@index([createdAt])
+  @@map("sync_log")
+}
+
+enum SyncDirection {
+  TO_AFRUS
+  FROM_AFRUS
+}
+
+enum SyncStatus {
+  PENDING
+  SYNCED
+  FAILED
+}
