@@ -588,22 +588,22 @@ All pipeline stage transitions follow the format below.
 | ISS-005 | Pipeline Stage State Machine | 1 | HIGH | ISS-004 | ✅ Done
 | ISS-006 | Stage Transition Rule Engine | 1 | HIGH | ISS-005 | ✅ Done
 | ISS-007 | SLA Monitoring and Stale Detection | 1 | HIGH | ISS-006 | ✅ Done
-| ISS-008 | `future` Stage Auto-Reactivation | 1 | MEDIUM | ISS-006 | Not Started
+| ISS-008 | `future` Stage Auto-Reactivation | 1 | MEDIUM | ISS-006 | ✅ Done
 | ISS-009 | afrus API Client (Per-Org Authentication) | 2 | HIGH | ISS-003, ISS-002 | ✅ Done
 | ISS-010 | On-Demand Extraction Pipeline | 2 | HIGH | ISS-009, ISS-004 | ✅ Done
 | ISS-011 | Wolverine → afrus Write-Back | 2 | HIGH | ISS-010 | ✅ Done
 | ISS-012 | Bidirectional Sync Orchestrator | 2 | MEDIUM | ISS-010, ISS-011 | ✅ Done
 | ISS-013 | LLM Provider Abstraction Layer | 3 | HIGH | ISS-003 | ✅ Done
-| ISS-014 | Next-Action Recommendation Engine | 3 | HIGH | ISS-013, ISS-006 | Not Started
-| ISS-015 | Lead Summarization and Qualification Assistant | 3 | MEDIUM | ISS-013, ISS-014 | Not Started
-| ISS-016 | Conversation Drafting | 3 | MEDIUM | ISS-013, ISS-014 | Not Started
+| ISS-014 | Next-Action Recommendation Engine | 3 | HIGH | ISS-013, ISS-006 | ✅ Done
+| ISS-015 | Lead Summarization and Qualification Assistant | 3 | MEDIUM | ISS-013, ISS-014 | ✅ Done
+| ISS-016 | Conversation Drafting | 3 | MEDIUM | ISS-013, ISS-014 | ✅ Done
 | ISS-017 | Nest.js CLI Application | 4 | HIGH | ISS-006, ISS-014 | Not Started
 | ISS-018 | REST API | 4 | HIGH | ISS-017 | Not Started
 | ISS-019 | Web Management UI | 4 | MEDIUM | ISS-018 | Not Started
-| ISS-020 | Action Tag → ALMA Webhook Integration | 5 | HIGH | ISS-004 | Not Started
-| ISS-021 | ALMA Action Library | 5 | HIGH | ISS-020 | Not Started
-| ISS-022 | ALMA → Wolverine Callback Handler | 5 | MEDIUM | ISS-020, ISS-021 | Not Started
-| ISS-023 | Sync Tags CRUD and Management | 6 | HIGH | ISS-004, ISS-009 | Not Started
-| ISS-024 | On-Demand Sync Trigger (API + CLI) | 6 | HIGH | ISS-010, ISS-023 | Not Started
+| ISS-020 | Action Tag → ALMA Webhook Integration | 5 | HIGH | ISS-004 | ✅ Done
+| ISS-021 | ALMA Action Library | 5 | HIGH | ISS-020 | ✅ Done
+| ISS-022 | ALMA → Wolverine Callback Handler | 5 | MEDIUM | ISS-020, ISS-021 | ✅ Done
+| ISS-023 | Sync Tags CRUD and Management | 6 | HIGH | ISS-004, ISS-009 | ✅ Done
+| ISS-024 | On-Demand Sync Trigger (API + CLI) | 6 | HIGH | ISS-010, ISS-023 | ✅ Done
 
 **Total: 24 issues across 6 phases.**
