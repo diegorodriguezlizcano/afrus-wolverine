@@ -12,6 +12,7 @@ import { LostReasonsModule } from './lost-reasons/lost-reasons.module.js';
 import { PipelineModule } from './pipeline/pipeline.module.js';
 import { RuleEngineModule } from './rule-engine/rule-engine.module.js';
 import { SlaModule } from './sla/sla.module.js';
+import { AfrusApiModule } from './afrus-api/afrus-api.module.js';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { SlaModule } from './sla/sla.module.js';
     PipelineModule,
     RuleEngineModule,
     SlaModule,
+    AfrusApiModule,
   ],
   controllers: [HealthController],
 })
