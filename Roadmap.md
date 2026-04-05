@@ -597,8 +597,8 @@ All pipeline stage transitions follow the format below.
 | ISS-014 | Next-Action Recommendation Engine | 3 | HIGH | ISS-013, ISS-006 | ✅ Done
 | ISS-015 | Lead Summarization and Qualification Assistant | 3 | MEDIUM | ISS-013, ISS-014 | ✅ Done
 | ISS-016 | Conversation Drafting | 3 | MEDIUM | ISS-013, ISS-014 | ✅ Done
-| ISS-017 | Nest.js CLI Application | 4 | HIGH | ISS-006, ISS-014 | Not Started
-| ISS-018 | REST API | 4 | HIGH | ISS-017 | Not Started
+| ISS-017 | Nest.js CLI Application | 4 | HIGH | ISS-006, ISS-014 | ✅ Done
+| ISS-018 | REST API | 4 | HIGH | ISS-017 | ✅ Done
 | ISS-019 | Web Management UI | 4 | MEDIUM | ISS-018 | Not Started
 | ISS-020 | Action Tag → ALMA Webhook Integration | 5 | HIGH | ISS-004 | ✅ Done
 | ISS-021 | ALMA Action Library | 5 | HIGH | ISS-020 | ✅ Done
