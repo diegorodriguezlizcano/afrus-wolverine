@@ -1,11 +1,12 @@
 import {
   Injectable,
   NotFoundException,
-  BadRequestException,
   Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { StageMachine } from '../stage-machine/stage-machine.js';
+import { RuleEngine } from '../rule-engine/rule-engine.js';
+import type { TransitionContext } from '../rule-engine/rule-engine.js';
 import { PipelineStage } from '@prisma/client';
 
 export interface TransitionResult {
@@ -42,7 +43,16 @@ export class PipelineService {
   ): Promise<TransitionResult> {
     const lead = await this.prisma.lead.findFirst({
       where: { email: leadEmail },
-      select: { email: true, stage: true, organizationId: true },
+      select: {
+        email: true,
+        stage: true,
+        organizationId: true,
+        temperature: true,
+        scheduledAt: true,
+        metAt: true,
+        assignedToId: true,
+        dealValue: true,
+      },
     });
 
     if (!lead) {
@@ -51,8 +61,20 @@ export class PipelineService {
 
     const fromStage = lead.stage as PipelineStage;
 
-    // ─── State machine validation ─────────────────────────────────────────
-    StageMachine.validateTransition(fromStage, toStage);
+    // ─── Rule Engine evaluation ───────────────────────────────────────────
+    const ctx: TransitionContext = {
+      leadEmail,
+      organizationId: lead.organizationId,
+      currentStage: fromStage,
+      currentTemperature: lead.temperature as any,
+      scheduledAt: lead.scheduledAt,
+      metAt: lead.metAt,
+      assignedToId: lead.assignedToId,
+      dealValue: lead.dealValue ? Number(lead.dealValue) : null,
+    };
+
+    // This throws BadRequestException if validation fails
+    const ruleResult = RuleEngine.evaluateOrThrow(ctx, toStage, options.lostReasonId);
 
     // ─── Determine which timestamp to set ───────────────────────────────
     const updateData: {
