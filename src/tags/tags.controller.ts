@@ -6,7 +6,6 @@ import {
   Body,
   Headers,
   BadRequestException,
-  Logger,
 } from '@nestjs/common';
 import { TagsService } from './tags.service.js';
 import { AssignTagsDto } from './dto/assign-tags.dto.js';
@@ -14,12 +13,23 @@ import { PrismaService } from '../prisma/prisma.service.js';
 
 @Controller()
 export class TagsController {
-  private readonly logger = new Logger(TagsController.name);
-
   constructor(
     private readonly tagsService: TagsService,
     private readonly prisma: PrismaService,
   ) {}
+
+  private async getOrgByApiKey(apiKey: string) {
+    if (!apiKey) {
+      throw new BadRequestException('Missing X-API-Key header');
+    }
+    const org = await this.prisma.organization.findFirst({
+      where: { afrusApiKey: apiKey },
+    });
+    if (!org) {
+      throw new BadRequestException('Invalid API key');
+    }
+    return org;
+  }
 
   /**
    * POST /leads/:email/tags
@@ -31,27 +41,14 @@ export class TagsController {
     @Body() dto: AssignTagsDto,
     @Headers('x-api-key') apiKey: string,
   ) {
-    if (!apiKey) {
-      throw new BadRequestException('Missing X-API-Key header');
-    }
-
-    const org = await this.prisma.organization.findUnique({
-      where: { afrusApiKey: apiKey },
-    });
-
-    if (!org) {
-      throw new BadRequestException('Invalid API key');
-    }
-
-    const result = await this.tagsService.assignTags(
+    const org = await this.getOrgByApiKey(apiKey);
+    return this.tagsService.assignTags(
       email,
       dto.tags,
-      null, // assignedBy — could come from JWT in a real auth system
-      org.organizationId,
+      null,
+      org.id,
       org.afrusApiKey,
     );
-
-    return result;
   }
 
   /**
@@ -63,26 +60,14 @@ export class TagsController {
     @Param('email') email: string,
     @Headers('x-api-key') apiKey: string,
   ) {
-    if (!apiKey) {
-      throw new BadRequestException('Missing X-API-Key header');
-    }
-
-    const org = await this.prisma.organization.findUnique({
-      where: { afrusApiKey: apiKey },
-    });
-
-    if (!org) {
-      throw new BadRequestException('Invalid API key');
-    }
-
-    const tags = await this.tagsService.getLeadTags(email, org.organizationId);
+    const org = await this.getOrgByApiKey(apiKey);
+    const tags = await this.tagsService.getLeadTags(email, org.id);
     return {
       email,
       tags: tags.map((t) => ({
-        type: t.type,
-        value: t.value,
-        assignedBy: t.assignedBy,
-        assignedAt: t.assignedAt,
+        type: t.tagType,
+        value: t.tagValue,
+        assignedAt: t.createdAt,
       })),
     };
   }

@@ -1,19 +1,20 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
 import { HealthController } from './health.controller.js';
+import { AppConfigModule } from './config/config.module.js';
+import { PrismaModule } from './prisma/prisma.module.js';
+import { AlmaModule } from './alma/alma.module.js';
+import { TagsModule } from './tags/tags.module.js';
+import { LeadsModule } from './leads/leads.module.js';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({
-      isGlobal: true,
-      envFilePath: ['.env', '.env.local'],
-      validationOptions: {
-        allowUnknown: false,
-        abortEarly: true,
-      },
-    }),
+    AppConfigModule, // Global config with typed AppConfigService
     ScheduleModule.forRoot(),
+    PrismaModule,
+    AlmaModule,
+    TagsModule,
+    LeadsModule,
   ],
   controllers: [HealthController],
 })

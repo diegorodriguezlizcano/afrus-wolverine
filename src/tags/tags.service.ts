@@ -7,6 +7,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service.js';
 import { AlmaWebhookClientService } from '../alma/alma-webhook-client.service.js';
 import { TagType, TAG_TYPE_PREFIXES } from './tag-type.enum.js';
+import type { Tag, Lead, Organization } from '@prisma/client';
 
 export interface ParsedTag {
   type: TagType;
@@ -14,7 +15,7 @@ export interface ParsedTag {
 }
 
 export interface AssignedTag {
-  type: TagType;
+  type: string;
   value: string;
 }
 
@@ -31,6 +32,8 @@ export interface AlmaCallback {
   status: string;
   callbackId?: string;
 }
+
+type LeadWithOrg = Lead & { organization: Organization };
 
 @Injectable()
 export class TagsService {
@@ -52,24 +55,17 @@ export class TagsService {
     organizationId: string,
     orgApiKey: string,
   ): Promise<AssignTagsResult> {
-    // Validate tags array is not empty
     if (!tags || tags.length === 0) {
       throw new BadRequestException('Tags array must not be empty');
     }
 
-    // Parse tags
     const parsedTags = this.parseTags(tags);
-
-    // Detect action tags
     const actionTags = this.detectActionTags(parsedTags);
-
-    // Get all current tags for the lead (for alma payload context)
     const currentTags = await this.getLeadTags(leadEmail, organizationId);
 
-    // Fetch lead and org data for ALMA payload
-    const lead = await this.prisma.lead.findUnique({
-      where: { email_orgId: { email: leadEmail, orgId: organizationId } },
-      include: { org: true },
+    const lead = await this.prisma.lead.findFirst({
+      where: { email: leadEmail, organizationId },
+      include: { organization: true },
     });
 
     if (!lead) {
@@ -81,34 +77,34 @@ export class TagsService {
     for (const parsed of parsedTags) {
       const tag = await this.prisma.tag.upsert({
         where: {
-          orgId_leadEmail_type: {
-            orgId: organizationId,
+          leadEmail_organizationId_tagType: {
             leadEmail,
-            type: parsed.type,
+            organizationId,
+            tagType: parsed.type,
           },
         },
         update: {
-          value: parsed.value,
-          assignedBy,
-          assignedAt: new Date(),
+          tagValue: parsed.value,
+          updatedAt: new Date(),
         },
         create: {
-          orgId: organizationId,
+          organizationId,
           leadEmail,
-          type: parsed.type,
-          value: parsed.value,
-          assignedBy,
+          tagType: parsed.type,
+          tagValue: parsed.value,
         },
       });
-      assignedTags.push({ type: tag.type, value: tag.value });
+      assignedTags.push({ type: tag.tagType as string, value: tag.tagValue });
     }
 
     // Trigger ALMA webhooks for each action tag
     const almaCallbacks: AlmaCallback[] = [];
+    const systemUserId = await this.getSystemUserId(organizationId);
+
     for (const actionTag of actionTags) {
       const actionTagFull = `action:${actionTag}`;
       const allTagStrings = [
-        ...currentTags.map((t) => `${t.type.toLowerCase()}:${t.value}`),
+        ...currentTags.map((t) => `${t.tagType.toLowerCase()}:${t.tagValue}`),
         ...tags,
       ];
 
@@ -123,24 +119,23 @@ export class TagsService {
       // Create ActionTagLog BEFORE firing webhook (optimistic)
       const actionTagLog = await this.prisma.actionTagLog.create({
         data: {
-          orgId: organizationId,
+          organizationId,
           leadEmail,
           actionTag,
-          actionTagFull,
-          payload: payload as Record<string, unknown>,
-          status: 'pending',
+          status: 'TRIGGERED',
+          triggeredById: systemUserId,
+          almaResponse: undefined,
         },
       });
 
       try {
         const result = await this.almaWebhookClient.trigger(payload, orgApiKey);
 
-        // Update log with success
         await this.prisma.actionTagLog.update({
           where: { id: actionTagLog.id },
           data: {
-            status: 'success',
-            almaResponse: result as Record<string, unknown>,
+            status: 'COMPLETED',
+            almaResponse: result as unknown as object,
             completedAt: new Date(),
           },
         });
@@ -151,17 +146,16 @@ export class TagsService {
           callbackId: result.callbackId,
         });
       } catch (err) {
-        // Update log with failure
         await this.prisma.actionTagLog.update({
           where: { id: actionTagLog.id },
           data: {
-            status: 'failed',
+            status: 'FAILED',
             completedAt: new Date(),
           },
         });
 
         this.logger.error(
-          `Failed to trigger ALMA webhook for actionTag=${actionTag}: ${(err as Error).message}`,
+          `Failed to trigger ALMA webhook for actionTag=${actionTag}: ${(err as Error).message ?? String(err)}`,
         );
 
         almaCallbacks.push({
@@ -185,11 +179,14 @@ export class TagsService {
    * Validates format and type.
    */
   parseTags(tags: string[]): ParsedTag[] {
+    if (!tags || tags.length === 0) {
+      throw new BadRequestException('Tags array must not be empty');
+    }
+
     const seenTypes = new Set<TagType>();
     const parsed: ParsedTag[] = [];
 
     for (const tag of tags) {
-      // Validate format
       if (!tag || typeof tag !== 'string') {
         throw new BadRequestException(`Invalid tag: ${tag}`);
       }
@@ -212,7 +209,6 @@ export class TagsService {
         );
       }
 
-      // One tag per type invariant
       if (seenTypes.has(tagType)) {
         throw new BadRequestException(
           `Duplicate tag type "${rawType}" in request. One tag per type allowed.`,
@@ -238,30 +234,36 @@ export class TagsService {
   /**
    * Returns all tags for a lead.
    */
-  async getLeadTags(leadEmail: string, organizationId: string) {
-    const tags = await this.prisma.tag.findMany({
-      where: { leadEmail, orgId: organizationId },
+  async getLeadTags(leadEmail: string, organizationId: string): Promise<Tag[]> {
+    return this.prisma.tag.findMany({
+      where: { leadEmail, organizationId },
     });
-    return tags;
+  }
+
+  /**
+   * Finds a system user (admin) for the org, used as triggeredById in ActionTagLog.
+   */
+  private async getSystemUserId(organizationId: string): Promise<string> {
+    const admin = await this.prisma.user.findFirst({
+      where: { organizationId, role: 'ADMIN' },
+      orderBy: { createdAt: 'asc' },
+    });
+    if (admin) return admin.id;
+
+    // Fallback: use any user
+    const user = await this.prisma.user.findFirst({
+      where: { organizationId },
+    });
+    if (user) return user.id;
+
+    // Last resort: return org id as placeholder (ActionTagLog needs a valid UUID)
+    return organizationId;
   }
 
   private buildAlmaPayload(
     actionTag: string,
     actionTagFull: string,
-    lead: {
-      email: string;
-      firstName: string;
-      lastName: string;
-      phone: string | null;
-      title: string | null;
-      contactRole: string | null;
-      stage: string;
-      temperature: string;
-      campaignName: string | null;
-      utmCampaign: string | null;
-      url: string | null;
-      org: { organizationId: string; name: string; domain: string | null; isCustomer: boolean };
-    },
+    lead: LeadWithOrg,
     assignedBy: string | null,
     allTags: string[],
   ) {
@@ -271,22 +273,22 @@ export class TagsService {
       actionTagFull,
       lead: {
         email: lead.email,
-        firstName: lead.firstName,
-        lastName: lead.lastName,
-        phone: lead.phone,
-        title: lead.title,
-        contactRole: lead.contactRole,
+        firstName: lead.firstName ?? '',
+        lastName: lead.lastName ?? '',
+        phone: lead.phone ?? null,
+        title: null,
+        contactRole: null,
         stage: lead.stage,
         temperature: lead.temperature,
-        campaignName: lead.campaignName,
-        utmCampaign: lead.utmCampaign,
-        url: lead.url,
+        campaignName: null,
+        utmCampaign: null,
+        url: null,
       },
       organization: {
-        orgId: lead.org.organizationId,
-        name: lead.org.name,
-        domain: lead.org.domain,
-        isCustomer: lead.org.isCustomer,
+        orgId: lead.organization.id,
+        name: lead.organization.name,
+        domain: null,
+        isCustomer: false,
       },
       context: {
         assignedBy,

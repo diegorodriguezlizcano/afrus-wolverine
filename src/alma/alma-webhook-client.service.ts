@@ -47,7 +47,7 @@ export interface AlmaWebhookResponse {
 export class AlmaWebhookClientService {
   private readonly logger = new Logger(AlmaWebhookClientService.name);
   private readonly webhookUrl: string;
-  private readonly maxRetries = 3;
+  private readonly maxRetries = 3; // up to 3 retries after initial attempt = 4 total
 
   constructor(
     private readonly configService: ConfigService,
@@ -65,10 +65,11 @@ export class AlmaWebhookClientService {
   ): Promise<AlmaWebhookResponse & { callbackId?: string }> {
     let lastError: unknown;
 
-    for (let attempt = 1; attempt <= this.maxRetries; attempt++) {
+    const totalAttempts = 1 + this.maxRetries; // initial + retries
+    for (let attempt = 1; attempt <= totalAttempts; attempt++) {
       try {
         this.logger.debug(
-          `[Attempt ${attempt}/${this.maxRetries}] Posting ALMA webhook for actionTag=${payload.actionTag}`,
+          `[Attempt ${attempt}/${totalAttempts}] Posting ALMA webhook for actionTag=${payload.actionTag}`,
         );
 
         const response = await firstValueFrom(
@@ -107,10 +108,10 @@ export class AlmaWebhookClientService {
         }
 
         this.logger.warn(
-          `ALMA webhook attempt ${attempt}/${this.maxRetries} failed: ${error.message ?? error.code ?? 'unknown'}`,
+          `ALMA webhook attempt ${attempt}/${totalAttempts} failed: ${error.message ?? error.code ?? 'unknown'}`,
         );
 
-        if (attempt < this.maxRetries) {
+        if (attempt < totalAttempts) {
           const backoffMs = Math.pow(2, attempt - 1) * 1000;
           this.logger.debug(`Waiting ${backoffMs}ms before retry...`);
           await this.sleep(backoffMs);
@@ -119,7 +120,7 @@ export class AlmaWebhookClientService {
     }
 
     this.logger.error(
-      `ALMA webhook exhausted all ${this.maxRetries} retries for actionTag=${payload.actionTag}`,
+      `ALMA webhook exhausted all ${this.maxRetries} retries (${totalAttempts} total attempts) for actionTag=${payload.actionTag}`,
     );
     throw lastError;
   }
