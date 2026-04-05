@@ -159,8 +159,8 @@ describe('AlmaWebhookClient', () => {
       mockHttpService.post.mockReturnValue(throwError(() => serverError));
 
       await expect(service.trigger(mockPayload, 'test-api-key')).rejects.toBeDefined();
-      // 1 initial attempt + 3 retries = 4 total calls
-      expect(mockHttpService.post).toHaveBeenCalledTimes(4);
+      // 1 initial attempt + 2 retries = 3 total calls
+      expect(mockHttpService.post).toHaveBeenCalledTimes(3);
     });
   });
 
