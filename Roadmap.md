@@ -600,9 +600,9 @@ All pipeline stage transitions follow the format below.
 | ISS-017 | Nest.js CLI Application | 4 | HIGH | ISS-006, ISS-014 | ✅ Done
 | ISS-018 | REST API | 4 | HIGH | ISS-017 | ✅ Done
 | ISS-019 | Web Management UI | 4 | MEDIUM | ISS-018 | ✅ Done
-| ISS-020 | Action Tag → ALMA Webhook Integration | 5 | HIGH | ISS-004 | ✅ Done
-| ISS-021 | ALMA Action Library | 5 | HIGH | ISS-020 | ✅ Done
-| ISS-022 | ALMA → Wolverine Callback Handler | 5 | MEDIUM | ISS-020, ISS-021 | ✅ Done
+| ISS-020 | Action Tag → ALMA Webhook Integration | 5 | HIGH | ISS-004 | ⏭ Skipped
+| ISS-021 | ALMA Action Library | 5 | HIGH | ISS-020 | ⏭ Skipped
+| ISS-022 | ALMA → Wolverine Callback Handler | 5 | MEDIUM | ISS-020, ISS-021 | ⏭ Skipped
 | ISS-023 | Sync Tags CRUD and Management | 6 | HIGH | ISS-004, ISS-009 | ✅ Done
 | ISS-024 | On-Demand Sync Trigger (API + CLI) | 6 | HIGH | ISS-010, ISS-023 | ✅ Done
 
