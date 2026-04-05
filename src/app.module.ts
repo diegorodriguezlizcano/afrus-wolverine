@@ -6,6 +6,9 @@ import { PrismaModule } from './prisma/prisma.module.js';
 import { AlmaModule } from './alma/alma.module.js';
 import { TagsModule } from './tags/tags.module.js';
 import { LeadsModule } from './leads/leads.module.js';
+import { SyncTagsModule } from './sync-tags/sync-tags.module.js';
+import { OriginsModule } from './origins/origins.module.js';
+import { LostReasonsModule } from './lost-reasons/lost-reasons.module.js';
 
 @Module({
   imports: [
@@ -15,6 +18,9 @@ import { LeadsModule } from './leads/leads.module.js';
     AlmaModule,
     TagsModule,
     LeadsModule,
+    SyncTagsModule,
+    OriginsModule,
+    LostReasonsModule,
   ],
   controllers: [HealthController],
 })

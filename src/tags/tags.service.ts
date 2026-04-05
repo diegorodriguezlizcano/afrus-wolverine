@@ -260,6 +260,28 @@ export class TagsService {
     return organizationId;
   }
 
+  /**
+   * Removes a single tag (by type) from a lead.
+   */
+  async removeTag(leadEmail: string, tagType: string, organizationId: string): Promise<void> {
+    await this.prisma.tag.deleteMany({
+      where: {
+        leadEmail,
+        organizationId,
+        tagType: tagType as TagType,
+      },
+    });
+  }
+
+  /**
+   * Removes all tags from a lead.
+   */
+  async removeAllTags(leadEmail: string, organizationId: string): Promise<void> {
+    await this.prisma.tag.deleteMany({
+      where: { leadEmail, organizationId },
+    });
+  }
+
   private buildAlmaPayload(
     actionTag: string,
     actionTagFull: string,
