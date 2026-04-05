@@ -11,6 +11,7 @@ import { OriginsModule } from './origins/origins.module.js';
 import { LostReasonsModule } from './lost-reasons/lost-reasons.module.js';
 import { PipelineModule } from './pipeline/pipeline.module.js';
 import { RuleEngineModule } from './rule-engine/rule-engine.module.js';
+import { SlaModule } from './sla/sla.module.js';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { RuleEngineModule } from './rule-engine/rule-engine.module.js';
     LostReasonsModule,
     PipelineModule,
     RuleEngineModule,
+    SlaModule,
   ],
   controllers: [HealthController],
 })

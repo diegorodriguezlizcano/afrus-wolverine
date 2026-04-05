@@ -586,7 +586,7 @@ All pipeline stage transitions follow the format below.
 | ISS-003 | Secrets and Configuration Management | 0 | HIGH | ISS-001 | ✅ Done
 | ISS-004 | Tag System CRUD (5 types including Sync) | 1 | HIGH | ISS-002 | ✅ Done
 | ISS-005 | Pipeline Stage State Machine | 1 | HIGH | ISS-004 | ✅ Done
-| ISS-006 | Stage Transition Rule Engine | 1 | HIGH | ISS-005 | Not Started
+| ISS-006 | Stage Transition Rule Engine | 1 | HIGH | ISS-005 | ✅ Done
 | ISS-007 | SLA Monitoring and Stale Detection | 1 | HIGH | ISS-006 | Not Started
 | ISS-008 | `future` Stage Auto-Reactivation | 1 | MEDIUM | ISS-006 | Not Started
 | ISS-009 | afrus API Client (Per-Org Authentication) | 2 | HIGH | ISS-003, ISS-002 | Not Started
