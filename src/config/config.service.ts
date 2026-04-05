@@ -77,6 +77,10 @@ export class AppConfigService {
     return this.config.get<string>('DEEPINFRA_API_KEY') ?? null;
   }
 
+  getMiniMaxApiKey(): string | null {
+    return this.config.get<string>('MINIMAX_API_KEY') ?? null;
+  }
+
   /**
    * Returns the API key for the currently configured LLM provider.
    * @throws Error if no key is configured for the active provider
@@ -99,6 +103,16 @@ export class AppConfigService {
       if (!key) {
         throw new Error(
           'LLM_PROVIDER=deepinfra but DEEPINFRA_API_KEY is not set',
+        );
+      }
+      return key;
+    }
+
+    if (provider === LlmProvider.MINIMAX) {
+      const key = this.getMiniMaxApiKey();
+      if (!key) {
+        throw new Error(
+          'LLM_PROVIDER=minimax but MINIMAX_API_KEY is not set',
         );
       }
       return key;

@@ -4,6 +4,7 @@ import { firstValueFrom } from 'rxjs';
 import { AppConfigService, LlmProvider as ConfigLlmProvider } from '../config/config.service.js';
 import { OpenRouterProvider } from './providers/openrouter.provider.js';
 import { DeepInfraProvider } from './providers/deepinfra.provider.js';
+import { MiniMaxProvider } from './providers/minimax.provider.js';
 import type { LlmMessage, LlmOptions, LlmProvider, LlmResponse } from './llm.interface.js';
 
 /**
@@ -12,6 +13,7 @@ import type { LlmMessage, LlmOptions, LlmProvider, LlmResponse } from './llm.int
  * Provider is selected via LLM_PROVIDER env var:
  * - "openrouter" → OpenRouterProvider
  * - "deepinfra" → DeepInfraProvider
+ * - "minimax" → MiniMaxProvider
  *
  * On startup, all configured providers run health checks.
  */
@@ -45,6 +47,12 @@ export class LlmService implements OnModuleInit {
       case ConfigLlmProvider.DEEPINFRA:
         return new DeepInfraProvider(
           this.configService.getDeepInfraApiKey() ?? '',
+          this.httpService,
+        );
+
+      case ConfigLlmProvider.MINIMAX:
+        return new MiniMaxProvider(
+          this.configService.getMiniMaxApiKey() ?? '',
           this.httpService,
         );
 
@@ -124,6 +132,7 @@ export class LlmService implements OnModuleInit {
     const providers: Array<{ type: ConfigLlmProvider; key: string | null; name: string }> = [
       { type: ConfigLlmProvider.OPENROUTER, key: this.configService.getOpenRouterApiKey(), name: 'OpenRouter' },
       { type: ConfigLlmProvider.DEEPINFRA, key: this.configService.getDeepInfraApiKey(), name: 'DeepInfra' },
+      { type: ConfigLlmProvider.MINIMAX, key: this.configService.getMiniMaxApiKey(), name: 'MiniMax' },
     ];
 
     for (const p of providers) {

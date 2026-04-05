@@ -19,6 +19,7 @@ import { plainToInstance } from 'class-transformer';
 export enum LlmProvider {
   OPENROUTER = 'openrouter',
   DEEPINFRA = 'deepinfra',
+  MINIMAX = 'minimax',
 }
 
 /**
@@ -93,6 +94,10 @@ export class EnvironmentVariables {
   @IsString()
   DEEPINFRA_API_KEY?: string;
 
+  @ValidateIf((o) => o.LLM_PROVIDER === LlmProvider.MINIMAX)
+  @IsString()
+  MINIMAX_API_KEY?: string;
+
   // ─── afrus ────────────────────────────────────────────────────────────────
 
   @IsOptional()
@@ -165,6 +170,11 @@ export function validateEnvironmentVariables(): string[] {
   if (provider === 'deepinfra' && !process.env.DEEPINFRA_API_KEY) {
     errors.push(
       'LLM_PROVIDER=deepinfra but DEEPINFRA_API_KEY is not set',
+    );
+  }
+  if (provider === 'minimax' && !process.env.MINIMAX_API_KEY) {
+    errors.push(
+      'LLM_PROVIDER=minimax but MINIMAX_API_KEY is not set',
     );
   }
 
