@@ -97,7 +97,7 @@ docker-compose up --build
 | 5 | ALMA Integration | ISS-020 → ISS-022 |
 | 6 | Sync On-Demand Engine | ISS-023 → ISS-024 |
 
-**First issue:** ISS-001 — Docker scaffold.
+**Infrastructure complete:** ISS-001 ✅ (Docker scaffold) + ISS-002 ✅ (PostgreSQL schema + RLS)
 
 ---
 

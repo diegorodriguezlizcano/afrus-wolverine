@@ -61,6 +61,15 @@ model User {
   // Leads assigned to this SDR
   assignedLeads  Lead[]       @relation("AssignedSDR")
 
+  // Reverse relations for stage-by-user (one per stage trigger)
+  leadsScheduledBy Lead[] @relation("LeadScheduledBy")
+  leadsMetBy      Lead[] @relation("LeadMetBy")
+  leadsQualifiedBy Lead[] @relation("LeadQualifiedBy")
+  leadsProposedBy Lead[] @relation("LeadProposedBy")
+  leadsNegotiatingBy Lead[] @relation("LeadNegotiatingBy")
+  leadsWonBy      Lead[] @relation("LeadWonBy")
+  leadsLostBy     Lead[] @relation("LeadLostBy")
+
   // Transition / action logs where this user triggered the action
   triggeredTransitions StageTransitionLog[] @relation("TriggeredByUser")
   triggeredActions      ActionTagLog[]       @relation("TriggeredByUser")
@@ -147,13 +156,13 @@ model Lead {
   origin         Origin?     @relation(fields: [originId], references: [id])
 
   // User relations for stage transitions
-  scheduledBy    User?  @relation(fields: [scheduledById], references: [id])
-  metBy          User?  @relation(fields: [metById], references: [id])
-  qualifiedBy    User?  @relation(fields: [qualifiedById], references: [id])
-  proposedBy     User?  @relation(fields: [proposedById], references: [id])
-  negotiatingBy  User?  @relation(fields: [negotiatingById], references: [id])
-  wonBy          User?  @relation(fields: [wonById], references: [id])
-  lostBy         User?  @relation(fields: [lostById], references: [id])
+  scheduledBy    User?  @relation("LeadScheduledBy", fields: [scheduledById], references: [id])
+  metBy          User?  @relation("LeadMetBy", fields: [metById], references: [id])
+  qualifiedBy    User?  @relation("LeadQualifiedBy", fields: [qualifiedById], references: [id])
+  proposedBy     User?  @relation("LeadProposedBy", fields: [proposedById], references: [id])
+  negotiatingBy  User?  @relation("LeadNegotiatingBy", fields: [negotiatingById], references: [id])
+  wonBy          User?  @relation("LeadWonBy", fields: [wonById], references: [id])
+  lostBy         User?  @relation("LeadLostBy", fields: [lostById], references: [id])
 
   // Tags (one per type per lead)
   tags            Tag[]
