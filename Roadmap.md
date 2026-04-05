@@ -593,7 +593,7 @@ All pipeline stage transitions follow the format below.
 | ISS-010 | On-Demand Extraction Pipeline | 2 | HIGH | ISS-009, ISS-004 | ✅ Done
 | ISS-011 | Wolverine → afrus Write-Back | 2 | HIGH | ISS-010 | ✅ Done
 | ISS-012 | Bidirectional Sync Orchestrator | 2 | MEDIUM | ISS-010, ISS-011 | ✅ Done
-| ISS-013 | LLM Provider Abstraction Layer | 3 | HIGH | ISS-003 | Not Started
+| ISS-013 | LLM Provider Abstraction Layer | 3 | HIGH | ISS-003 | ✅ Done
 | ISS-014 | Next-Action Recommendation Engine | 3 | HIGH | ISS-013, ISS-006 | Not Started
 | ISS-015 | Lead Summarization and Qualification Assistant | 3 | MEDIUM | ISS-013, ISS-014 | Not Started
 | ISS-016 | Conversation Drafting | 3 | MEDIUM | ISS-013, ISS-014 | Not Started
