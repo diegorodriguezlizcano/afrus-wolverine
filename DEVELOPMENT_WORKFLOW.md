@@ -60,11 +60,16 @@ Opus reviews the generated code against:
 - **If accepted**: Proceed to Step 7
 - **If rejected**: Provide specific feedback. Minimax iterates. Opus re-reviews. Loop until accepted.
 
-### Step 7 — Completion
-After Opus approves the code:
-1. Commit to GitHub
-2. Update `README.md` if needed
-3. Mark issue as **Done** in `Roadmap.md`
+### Step 7 — Completion Gates (mandatory — all must pass)
+After Opus approves the code, these gates MUST pass before marking done:
+
+1. **`npm run build`** — must succeed with zero TypeScript errors
+2. **`npm test`** — must pass all unit tests (no exceptions)
+3. **Integration tests** — if the issue defined integration tests, they must be executed and pass. Integration tests live in `test/` and are named `*.integration.spec.ts`. Run with `npm test -- --testPathPattern=integration`
+4. **Database migrations** — if the issue added or modified Prisma schema, run `prisma migrate dev` locally to generate a new migration. Verify the generated SQL in `prisma/migrations/` is correct before committing.
+5. **Commit AND push** — `git commit` AND `git push origin <branch>`. Local-only commits are not acceptable — the remote must stay current after every issue.
+6. Update `README.md` if the issue added new features or changed usage
+7. Mark issue as **Done** in `Roadmap.md`
 
 ---
 
