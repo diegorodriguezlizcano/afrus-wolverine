@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wolverine — afrus CRM Pipeline</title>
+  <style>
+    :root {
+      --afrus-primary: #003893;
+      --afrus-accent: #00d084;
+      --afrus-success: #059669;
+      --afrus-highlight: #F26DFF;
+      --afrus-alert: #FF027A;
+      --afrus-warning: #fcb900;
+      --afrus-orange: #f97316;
+      --afrus-error: #ce1126;
+      --afrus-bg-dark: #0a0a0f;
+      --afrus-surface-dark: #111827;
+      --afrus-surface-light: #1f2937;
+      --afrus-text-primary: #f8fafc;
+      --afrus-text: #ffffff;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--afrus-bg-dark);
+      color: var(--afrus-text-primary);
+      min-height: 100vh;
+    }
+
+    .header {
+      background: var(--afrus-surface-dark);
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .header h1 {
+      font-size: 20px;
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--afrus-accent), var(--afrus-primary));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .header .api-key-input {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .header input {
+      background: var(--afrus-surface-light);
+      border: 1px solid rgba(255,255,255,0.15);
+      color: var(--afrus-text);
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 13px;
+      width: 280px;
+    }
+    .header button {
+      background: var(--afrus-primary);
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .header button:hover { opacity: 0.9; }
+
+    .kanban {
+      display: flex;
+      gap: 12px;
+      padding: 20px;
+      overflow-x: auto;
+      min-height: calc(100vh - 80px);
+    }
+
+    .column {
+      flex: 0 0 220px;
+      background: var(--afrus-surface-dark);
+      border-radius: 10px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .column-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 4px 8px;
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: rgba(255,255,255,0.6);
+    }
+    .column-count {
+      background: var(--afrus-surface-light);
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 11px;
+    }
+
+    .lead-card {
+      background: var(--afrus-surface-light);
+      border-radius: 8px;
+      padding: 12px;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: border-color 0.2s;
+    }
+    .lead-card:hover {
+      border-color: var(--afrus-accent);
+    }
+    .lead-card .name {
+      font-weight: 600;
+      font-size: 14px;
+      margin-bottom: 4px;
+    }
+    .lead-card .email {
+      font-size: 12px;
+      color: rgba(255,255,255,0.5);
+      margin-bottom: 6px;
+    }
+    .lead-card .tags {
+      display: flex;
+      gap: 4px;
+      flex-wrap: wrap;
+    }
+    .tag {
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-weight: 600;
+    }
+    .tag.hot { background: rgba(255,2,122,0.2); color: var(--afrus-alert); }
+    .tag.warm { background: rgba(252,185,0,0.2); color: var(--afrus-warning); }
+    .tag.cold { background: rgba(0,208,132,0.15); color: var(--afrus-accent); }
+
+    .loading { text-align: center; padding: 40px; color: rgba(255,255,255,0.4); }
+    .error { color: var(--afrus-error); padding: 20px; text-align: center; }
+
+    #sla-panel {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: var(--afrus-surface-dark);
+      border-top: 1px solid rgba(255,255,255,0.1);
+      padding: 8px 24px;
+      font-size: 12px;
+      display: flex;
+      gap: 16px;
+      color: rgba(255,255,255,0.5);
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>🐺 Wolverine Pipeline</h1>
+    <div class="api-key-input">
+      <input id="apiKey" type="password" placeholder="X-API-Key" />
+      <button onclick="loadPipeline()">Load Pipeline</button>
+    </div>
+  </div>
+
+  <div id="kanban" class="kanban">
+    <div class="loading">Enter your API key and click "Load Pipeline" to view leads.</div>
+  </div>
+
+  <div id="sla-panel">
+    <span>Wolverine CRM v0.1.0</span>
+    <span id="lead-count">—</span>
+    <span id="last-sync">—</span>
+  </div>
+
+  <script>
+    const STAGES = ['NEW', 'SCHEDULED', 'MET', 'QUALIFIED', 'PROPOSED', 'NEGOTIATING', 'FUTURE', 'WON', 'LOST'];
+    const STAGE_LABELS = {
+      NEW: '🆕 New', SCHEDULED: '📅 Scheduled', MET: '🤝 Met',
+      QUALIFIED: '✅ Qualified', PROPOSED: '📄 Proposed', NEGOTIATING: '💬 Negotiating',
+      FUTURE: '🔮 Future', WON: '🏆 Won', LOST: '❌ Lost'
+    };
+
+    async function loadPipeline() {
+      const apiKey = document.getElementById('apiKey').value;
+      if (!apiKey) return alert('Enter API key');
+
+      const kanban = document.getElementById('kanban');
+      kanban.innerHTML = '<div class="loading">Loading...</div>';
+
+      try {
+        const res = await fetch('/leads', { headers: { 'x-api-key': apiKey } });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const leads = await res.json();
+
+        const grouped = {};
+        STAGES.forEach(s => grouped[s] = []);
+        (Array.isArray(leads) ? leads : []).forEach(l => {
+          if (grouped[l.stage]) grouped[l.stage].push(l);
+        });
+
+        kanban.innerHTML = STAGES.map(stage => `
+          <div class="column">
+            <div class="column-header">
+              <span>${STAGE_LABELS[stage]}</span>
+              <span class="column-count">${grouped[stage].length}</span>
+            </div>
+            ${grouped[stage].map(lead => `
+              <div class="lead-card" onclick="showLead('${lead.email}')">
+                <div class="name">${lead.firstName || ''} ${lead.lastName || ''}</div>
+                <div class="email">${lead.email}</div>
+                <div class="tags">
+                  <span class="tag ${lead.temperature?.toLowerCase()}">${lead.temperature}</span>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        `).join('');
+
+        const total = Object.values(grouped).flat().length;
+        document.getElementById('lead-count').textContent = `${total} lead(s)`;
+        document.getElementById('last-sync').textContent = `Loaded: ${new Date().toLocaleTimeString()}`;
+      } catch (err) {
+        kanban.innerHTML = `<div class="error">Error: ${err.message}</div>`;
+      }
+    }
+
+    function showLead(email) {
+      alert(`Lead detail for ${email} — coming soon in Wolverine v0.2`);
+    }
+  </script>
+</body>
+</html>

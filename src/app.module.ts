@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ScheduleModule } from '@nestjs/schedule';
+import { ServeStaticModule } from '@nestjs/serve-static';
+import { join } from 'path';
 import { HealthController } from './health.controller.js';
 import { AppConfigModule } from './config/config.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
@@ -21,8 +23,12 @@ import { AgentsModule } from './agents/agents.module.js';
 
 @Module({
   imports: [
-    AppConfigModule, // Global config with typed AppConfigService
+    AppConfigModule,
     ScheduleModule.forRoot(),
+    ServeStaticModule.forRoot({
+      rootPath: join(__dirname, '..', 'ui', 'public'),
+      serveRoot: '/ui',
+    }),
     PrismaModule,
     AlmaModule,
     TagsModule,
