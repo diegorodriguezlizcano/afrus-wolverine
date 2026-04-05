@@ -583,8 +583,8 @@ All pipeline stage transitions follow the format below.
 |---|---|---|---|---|
 | ISS-001 | Project Scaffold and Docker Setup | 0 | HIGH | — | ✅ Done
 | ISS-002 | PostgreSQL Multi-Tenant Schema (RLS + Email PK) | 0 | HIGH | ISS-001 | ✅ Done
-| ISS-003 | Secrets and Configuration Management | 0 | HIGH | ISS-001 | Not Started
-| ISS-004 | Tag System CRUD (5 types including Sync) | 1 | HIGH | ISS-002 | Not Started
+| ISS-003 | Secrets and Configuration Management | 0 | HIGH | ISS-001 | ✅ Done
+| ISS-004 | Tag System CRUD (5 types including Sync) | 1 | HIGH | ISS-002 | ✅ Done
 | ISS-005 | Pipeline Stage State Machine | 1 | HIGH | ISS-004 | Not Started
 | ISS-006 | Stage Transition Rule Engine | 1 | HIGH | ISS-005 | Not Started
 | ISS-007 | SLA Monitoring and Stale Detection | 1 | HIGH | ISS-006 | Not Started

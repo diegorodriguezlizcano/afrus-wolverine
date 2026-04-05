@@ -9,6 +9,7 @@ import { LeadsModule } from './leads/leads.module.js';
 import { SyncTagsModule } from './sync-tags/sync-tags.module.js';
 import { OriginsModule } from './origins/origins.module.js';
 import { LostReasonsModule } from './lost-reasons/lost-reasons.module.js';
+import { PipelineModule } from './pipeline/pipeline.module.js';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { LostReasonsModule } from './lost-reasons/lost-reasons.module.js';
     SyncTagsModule,
     OriginsModule,
     LostReasonsModule,
+    PipelineModule,
   ],
   controllers: [HealthController],
 })
