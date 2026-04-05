@@ -4,6 +4,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { WritebackService } from '../writeback/writeback.service.js';
 import { StageMachine } from '../stage-machine/stage-machine.js';
 import { RuleEngine } from '../rule-engine/rule-engine.js';
 import type { TransitionContext } from '../rule-engine/rule-engine.js';
@@ -26,7 +27,10 @@ export interface TransitionOptions {
 export class PipelineService {
   private readonly logger = new Logger(PipelineService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly writebackService: WritebackService,
+  ) {}
 
   /**
    * Transitions a lead from its current stage to a new stage.
@@ -114,6 +118,11 @@ export class PipelineService {
       `Stage transition: lead=${leadEmail} ${fromStage} → ${toStage} (logged=${transitionLog.id})`,
     );
 
+    // ─── Write-back to afrus (async — don't fail the transition if write-back fails) ──
+    this.writebackStageTransition(leadEmail, toStage, lead.organizationId).catch((err) => {
+      this.logger.warn(`Write-back to afrus failed for ${leadEmail}: ${err}`);
+    });
+
     return {
       success: true,
       leadEmail,
@@ -143,5 +152,21 @@ export class PipelineService {
    */
   getValidNextStages(currentStage: PipelineStage): PipelineStage[] {
     return StageMachine.getValidNextStages(currentStage);
+  }
+
+  /**
+   * Fire-and-forget write-back to afrus after a stage transition.
+   * Failures are logged but don't affect the transition result.
+   */
+  private async writebackStageTransition(
+    email: string,
+    newStage: PipelineStage,
+    organizationId: string,
+  ): Promise<void> {
+    await this.writebackService.writebackStageTransition(
+      organizationId,
+      email,
+      newStage,
+    );
   }
 }

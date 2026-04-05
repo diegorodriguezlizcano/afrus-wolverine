@@ -14,6 +14,7 @@ import { RuleEngineModule } from './rule-engine/rule-engine.module.js';
 import { SlaModule } from './sla/sla.module.js';
 import { AfrusApiModule } from './afrus-api/afrus-api.module.js';
 import { ExtractionModule } from './extraction/extraction.module.js';
+import { WritebackModule } from './writeback/writeback.module.js';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { ExtractionModule } from './extraction/extraction.module.js';
     SlaModule,
     AfrusApiModule,
     ExtractionModule,
+    WritebackModule,
   ],
   controllers: [HealthController],
 })
