@@ -1,7 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { LlmService } from '../llm/llm.service.js';
-import type { LlmMessage } from '../llm/llm.interface.js';
 import { PipelineStage, Temperature } from '@prisma/client';
 
 export interface LeadSummary {
@@ -16,13 +15,7 @@ export interface LeadSummary {
 /**
  * Lead Summarization Agent
  *
- * Generates a structured, human-readable summary of a lead's current state
- * and history for an SDR to quickly understand where they stand.
- *
- * Used for:
- * - Daily pipeline reviews
- * - Handoff between SDRs
- * - CRM record snapshots
+ * Generates a structured, human-readable summary of a lead's current state.
  */
 @Injectable()
 export class LeadSummarizer {
@@ -33,9 +26,6 @@ export class LeadSummarizer {
     private readonly llm: LlmService,
   ) {}
 
-  /**
-   * Generates a structured summary for a lead.
-   */
   async summarize(
     leadEmail: string,
     organizationId: string,
@@ -55,10 +45,7 @@ export class LeadSummarizer {
     return this.parseSummary(response.content, language);
   }
 
-  private async loadSummaryContext(
-    email: string,
-    organizationId: string,
-  ) {
+  private async loadSummaryContext(email: string, organizationId: string) {
     const lead = await this.prisma.lead.findFirst({
       where: { email, organizationId },
       include: {
@@ -74,19 +61,18 @@ export class LeadSummarizer {
       email,
       firstName: lead.firstName,
       lastName: lead.lastName,
-      stage: lead.stage as PipelineStage,
-      temperature: lead.temperature as Temperature,
+      stage: lead.stage,
+      temperature: lead.temperature,
       dealValue: lead.dealValue ? Number(lead.dealValue) : null,
       createdAt: lead.createdAt.toISOString(),
       updatedAt: lead.updatedAt.toISOString(),
-      campaignName: lead.campaignName ?? null,
-      tags: lead.tags.map((t: { tagType: string; tagValue: string }) => `${t.tagType}:${t.tagValue}`),
-      stageHistory: lead.stageTransitions.map((t: { fromStage: string; toStage: string; createdAt: Date }) => ({
-        from: t.fromStage,
+      tags: lead.tags.map((t) => `${t.tagType}:${t.tagValue}`),
+      stageHistory: lead.stageTransitions.map((t) => ({
+        from: t.fromStage ?? 'N/A',
         to: t.toStage,
         date: t.createdAt.toISOString().split('T')[0],
       })),
-      interactionHistory: lead.actionLogs.map((l: { id: string; createdAt: Date }) => ({
+      interactionHistory: lead.actionLogs.map((l) => ({
         id: l.id,
         date: l.createdAt.toISOString().split('T')[0],
       })),
@@ -95,52 +81,36 @@ export class LeadSummarizer {
 
   private getSystemPrompt(language: string): string {
     const prompts: Record<string, string> = {
-      es: `Eres Wolverine, el asistente de SDR de afrus. Genera un resumen estructurado de leads para SDRs. Responde SOLO en JSON válido:
-{
-  "headline": "título breve de una línea (máx 80 chars)",
-  "situation": "situación actual del lead en 2-3 frases (máx 200 chars)",
-  "keyInsights": ["insight 1", "insight 2", "insight 3"],
-  "riskFactors": ["factor de riesgo 1", "factor de riesgo 2"],
-  "recommendedNextSteps": ["paso 1", "paso 2"],
-  "language": "es"
-}`,
-      en: `You are Wolverine, afrus's SDR assistant. Generate structured lead summaries for SDRs. Respond ONLY in valid JSON:
-{
-  "headline": "brief one-line title (max 80 chars)",
-  "situation": "current lead situation in 2-3 sentences (max 200 chars)",
-  "keyInsights": ["insight 1", "insight 2", "insight 3"],
-  "riskFactors": ["risk factor 1", "risk factor 2"],
-  "recommendedNextSteps": ["step 1", "step 2"],
-  "language": "en"
-}`,
-      pt: `Você é Wolverine, assistente de SDR da afrus. Gere resumos estruturados de leads para SDRs. Responda APENAS em JSON válido:
-{
-  "headline": "título breve de uma linha (máx 80 chars)",
-  "situation": "situação atual do lead em 2-3 frases (máx 200 chars)",
-  "keyInsights": ["insight 1", "insight 2", "insight 3"],
-  "riskFactors": ["fator de risco 1", "fator de risco 2"],
-  "recommendedNextSteps": ["passo 1", "passo 2"],
-  "language": "pt"
-}`,
+      es: `Eres Wolverine, el asistente de SDR de afrus. Genera un resumen estructurado de leads. Responde SOLO en JSON válido:
+{"headline":"título breve (máx 80 chars)","situation":"situación en 2-3 frases (máx 200 chars)","keyInsights":["insight 1","insight 2"],"riskFactors":["riesgo 1"],"recommendedNextSteps":["paso 1","paso 2"],"language":"es"}`,
+      en: `You are Wolverine, afrus's SDR assistant. Generate structured lead summaries. Respond ONLY in valid JSON:
+{"headline":"brief title (max 80 chars)","situation":"current situation in 2-3 sentences (max 200 chars)","keyInsights":["insight 1","insight 2"],"riskFactors":["risk 1"],"recommendedNextSteps":["step 1","step 2"],"language":"en"}`,
+      pt: `Você é Wolverine, assistente de SDR da afrus. Gere resumos estruturados. Responda APENAS em JSON válido:
+{"headline":"título breve (máx 80 chars)","situation":"situação em 2-3 frases (máx 200 chars)","keyInsights":["insight 1","insight 2"],"riskFactors":["risco 1"],"recommendedNextSteps":["passo 1","passo 2"],"language":"pt"}`,
     };
     return prompts[language] ?? prompts['es'];
   }
 
   private buildUserPrompt(ctx: any, language: string): string {
-    const stageLabel = { NEW: 'Nuevo', SCHEDULED: 'Programado', MET: 'Reunido', QUALIFIED: 'Calificado', PROPOSED: 'Propuesta enviada', NEGOTIATING: 'En negociación', FUTURE: 'En espera', WON: 'Ganado', LOST: 'Perdido' };
-    const tempLabel = { HOT: '🔥 Hot', WARM: '☀️ Warm', COLD: '❄️ Cold' };
+    const stageLabel: Record<string, string> = {
+      NEW: 'Nuevo', SCHEDULED: 'Programado', MET: 'Reunido', QUALIFIED: 'Calificado',
+      PROPOSED: 'Propuesta enviada', NEGOTIATING: 'En negociación', FUTURE: 'En espera',
+      WON: 'Ganado', LOST: 'Perdido',
+    };
+    const tempLabel: Record<string, string> = {
+      HOT: '🔥 Hot', WARM: '☀️ Warm', COLD: '❄️ Cold',
+    };
 
-    const stageName = stageLabel[ctx?.stage] ?? ctx?.stage ?? 'Desconocido';
-    const tempName = tempLabel[ctx?.temperature] ?? ctx?.temperature ?? 'Desconocida';
+    const stageName = stageLabel[String(ctx?.stage)] ?? ctx?.stage ?? 'Desconocido';
+    const tempName = tempLabel[String(ctx?.temperature)] ?? ctx?.temperature ?? 'Desconocida';
 
     return `Lead: ${ctx?.email ?? 'N/A'}
 Nombre: ${ctx?.firstName ?? ''} ${ctx?.lastName ?? ''}
 Etapa: ${stageName}
 Temperatura: ${tempName}
 Valor: ${ctx?.dealValue ? `$${ctx.dealValue}` : 'No definido'}
-Días en pipeline: ${ctx?.daysInPipeline ?? 'N/A'}
 Etiquetas: ${ctx?.tags?.join(', ') || 'Ninguna'}
-Historial de etapas: ${ctx?.stageHistory?.map((s: any) => `${s.from}→${s.to} (${s.date})`).join(' | ') || 'Sin cambios'}
+Historial de etapas: ${ctx?.stageHistory?.map((s: { from: string; to: string; date: string }) => `${s.from}→${s.to} (${s.date})`).join(' | ') || 'Sin cambios'}
 Interacciones registradas: ${ctx?.interactionHistory?.length ?? 0}
 
 Genera un resumen estructurado en ${language}.`;
