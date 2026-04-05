@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { AlmaWebhookClientService } from '../alma/alma-webhook-client.service.js';
+import { AppConfigService } from '../config/config.service.js';
 import { TagType, TAG_TYPE_PREFIXES } from './tag-type.enum.js';
 import type { Tag, Lead, Organization } from '@prisma/client';
 
@@ -42,11 +43,15 @@ export class TagsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly almaWebhookClient: AlmaWebhookClientService,
+    private readonly config: AppConfigService,
   ) {}
 
   /**
    * Assigns tags to a lead atomically.
-   * Parses tag strings, validates, upserts to DB, triggers ALMA webhooks for action tags.
+   * Parses tag strings, validates, upserts to DB.
+   *
+   * @deprecated ALMA webhooks are deprecated — afrus handles ALMA communication directly.
+   * ALMA webhook calls are only made when ALMA_ENABLED=true env var is set.
    */
   async assignTags(
     leadEmail: string,
@@ -97,72 +102,80 @@ export class TagsService {
       assignedTags.push({ type: tag.tagType as string, value: tag.tagValue });
     }
 
-    // Trigger ALMA webhooks for each action tag
+    // ── ALMA webhook calls (DEPRECATED — handled by afrus directly) ──
+    // Only fires when ALMA_ENABLED=true env var is set.
     const almaCallbacks: AlmaCallback[] = [];
-    const systemUserId = await this.getSystemUserId(organizationId);
 
-    for (const actionTag of actionTags) {
-      const actionTagFull = `action:${actionTag}`;
-      const allTagStrings = [
-        ...currentTags.map((t) => `${t.tagType.toLowerCase()}:${t.tagValue}`),
-        ...tags,
-      ];
+    if (this.config.isAlmaEnabled()) {
+      const systemUserId = await this.getSystemUserId(organizationId);
 
-      const payload = this.buildAlmaPayload(
-        actionTag,
-        actionTagFull,
-        lead,
-        assignedBy,
-        allTagStrings,
-      );
+      for (const actionTag of actionTags) {
+        const actionTagFull = `action:${actionTag}`;
+        const allTagStrings = [
+          ...currentTags.map((t) => `${t.tagType.toLowerCase()}:${t.tagValue}`),
+          ...tags,
+        ];
 
-      // Create ActionTagLog BEFORE firing webhook (optimistic)
-      const actionTagLog = await this.prisma.actionTagLog.create({
-        data: {
-          organizationId,
-          leadEmail,
+        const payload = this.buildAlmaPayload(
           actionTag,
-          status: 'TRIGGERED',
-          triggeredById: systemUserId,
-          almaResponse: undefined,
-        },
-      });
-
-      try {
-        const result = await this.almaWebhookClient.trigger(payload, orgApiKey);
-
-        await this.prisma.actionTagLog.update({
-          where: { id: actionTagLog.id },
-          data: {
-            status: 'COMPLETED',
-            almaResponse: result as unknown as object,
-            completedAt: new Date(),
-          },
-        });
-
-        almaCallbacks.push({
-          actionTag,
-          status: 'success',
-          callbackId: result.callbackId,
-        });
-      } catch (err) {
-        await this.prisma.actionTagLog.update({
-          where: { id: actionTagLog.id },
-          data: {
-            status: 'FAILED',
-            completedAt: new Date(),
-          },
-        });
-
-        this.logger.error(
-          `Failed to trigger ALMA webhook for actionTag=${actionTag}: ${(err as Error).message ?? String(err)}`,
+          actionTagFull,
+          lead,
+          assignedBy,
+          allTagStrings,
         );
 
-        almaCallbacks.push({
-          actionTag,
-          status: 'failed',
+        const actionTagLog = await this.prisma.actionTagLog.create({
+          data: {
+            organizationId,
+            leadEmail,
+            actionTag,
+            status: 'TRIGGERED',
+            triggeredById: systemUserId,
+            almaResponse: undefined,
+          },
         });
+
+        try {
+          const result = await this.almaWebhookClient.trigger(payload, orgApiKey);
+
+          await this.prisma.actionTagLog.update({
+            where: { id: actionTagLog.id },
+            data: {
+              status: 'COMPLETED',
+              almaResponse: result as unknown as object,
+              completedAt: new Date(),
+            },
+          });
+
+          almaCallbacks.push({
+            actionTag,
+            status: 'success',
+            callbackId: result.callbackId,
+          });
+        } catch (err) {
+          await this.prisma.actionTagLog.update({
+            where: { id: actionTagLog.id },
+            data: {
+              status: 'FAILED',
+              completedAt: new Date(),
+            },
+          });
+
+          this.logger.warn(
+            `[deprecated] ALMA webhook failed for actionTag=${actionTag}: ${(err as Error).message ?? String(err)}`,
+          );
+
+          almaCallbacks.push({
+            actionTag,
+            status: 'failed',
+          });
+        }
       }
+    } else {
+      this.logger.debug(
+        `[deprecated] ALMA webhooks disabled (ALMA_ENABLED != true). ` +
+        `Action tags [${actionTags.join(', ')}] assigned without triggering ALMA.`,
+      );
     }
 
     return {

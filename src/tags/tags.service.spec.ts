@@ -4,12 +4,14 @@ import { AlmaWebhookClientService } from '../alma/alma-webhook-client.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { TagType } from './tag-type.enum';
 import { BadRequestException } from '@nestjs/common';
+import { AppConfigService } from '../config/config.service';
 
 describe('TagsService', () => {
   let service: TagsService;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let mockPrisma: any;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let mockAppConfig: any;
   let mockAlmaClient: any;
 
   beforeEach(async () => {
@@ -30,6 +32,10 @@ describe('TagsService', () => {
       },
     };
 
+    mockAppConfig = {
+      isAlmaEnabled: jest.fn().mockReturnValue(false),
+    };
+
     mockAlmaClient = {
       trigger: jest.fn(),
     };
@@ -39,6 +45,7 @@ describe('TagsService', () => {
         TagsService,
         { provide: PrismaService, useValue: mockPrisma },
         { provide: AlmaWebhookClientService, useValue: mockAlmaClient },
+        { provide: AppConfigService, useValue: mockAppConfig },
       ],
     }).compile();
 

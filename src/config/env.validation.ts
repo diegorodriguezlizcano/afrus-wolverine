@@ -104,6 +104,12 @@ export class EnvironmentVariables {
   AFRUS_API_KEY?: string;
 
   // ─── ALMA ─────────────────────────────────────────────────────────────────
+  // DEPRECATED: ALMA communication is handled by afrus directly.
+  // Set ALMA_ENABLED=true only when ALMA webhook integration is ready.
+
+  @IsOptional()
+  @IsBoolean()
+  ALMA_ENABLED?: boolean;
 
   @IsOptional()
   @IsString()

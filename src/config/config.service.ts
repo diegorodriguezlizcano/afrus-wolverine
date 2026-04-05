@@ -126,6 +126,14 @@ export class AppConfigService {
 
   // ─── ALMA ────────────────────────────────────────────────────────────────
 
+  /**
+   * @deprecated ALMA communication is handled by afrus directly.
+   * Set ALMA_ENABLED=true only when ready to integrate.
+   */
+  isAlmaEnabled(): boolean {
+    return this.config.get<boolean>('ALMA_ENABLED') === true;
+  }
+
   getAlmaWebhookUrl(): string {
     return this.config.get<string>(
       'ALMA_WEBHOOK_URL',

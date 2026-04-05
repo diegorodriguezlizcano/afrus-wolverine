@@ -47,6 +47,11 @@ export interface AlmaWebhookResponse {
   message?: string;
 }
 
+/**
+ * @deprecated ALMA communication is handled by afrus directly.
+ * This service is only used when ALMA_ENABLED=true env var is set.
+ * Do not use directly — use TagsService.assignTags() instead.
+ */
 @Injectable()
 export class AlmaWebhookClientService {
   private readonly logger = new Logger(AlmaWebhookClientService.name);
