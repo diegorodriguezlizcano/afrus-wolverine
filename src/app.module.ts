@@ -17,6 +17,7 @@ import { ExtractionModule } from './extraction/extraction.module.js';
 import { WritebackModule } from './writeback/writeback.module.js';
 import { SyncModule } from './sync/sync.module.js';
 import { LlmModule } from './llm/llm.module.js';
+import { AgentsModule } from './agents/agents.module.js';
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { LlmModule } from './llm/llm.module.js';
     WritebackModule,
     SyncModule,
     LlmModule,
+    AgentsModule,
   ],
   controllers: [HealthController],
 })
